@@ -21,12 +21,13 @@ set -a; source "$REPO_ROOT/.env"; set +a
 # 2. Per-example venv
 cd "$DIR"
 if [[ ! -d .venv ]]; then
-  python3 -m venv .venv
+  source "$REPO_ROOT/scripts/_make-venv.sh"
+  make_venv
 fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
 pip install --quiet --upgrade pip
-pip install --quiet -r requirements.txt
+pip install --quiet --pre -r requirements.txt
 
 # 3. No policies for this example — it focuses on streaming instrumentation.
 
