@@ -47,37 +47,55 @@ _SESSION_ID = uuid.uuid4().hex  # stable for this REPL process; shared across al
 from crewai import Agent, Crew, Process, Task
 
 # ---------------------------------------------------------------------------
-# Agents
-# ---------------------------------------------------------------------------
-
-_researcher = Agent(
-    role="Research Analyst",
-    goal="Gather exactly 3 key facts about the given topic.",
-    backstory=(
-        "You are a meticulous research analyst. When given a topic you "
-        "identify the 3 most interesting, verifiable facts and present "
-        "them as a numbered list. You are concise and factual."
-    ),
-    llm="gpt-4o-mini",
-    verbose=False,
-)
-
-_writer = Agent(
-    role="Blog Writer",
-    goal="Turn research findings into a polished 2-paragraph blog summary.",
-    backstory=(
-        "You are a skilled technology blogger. Given a numbered list of "
-        "research facts you craft an engaging, well-structured 2-paragraph "
-        "summary suitable for a general audience. You do not invent new "
-        "facts — you work only from what the researcher provided."
-    ),
-    llm="gpt-4o-mini",
-    verbose=False,
-)
-
-# ---------------------------------------------------------------------------
 # Observed entry point
 # ---------------------------------------------------------------------------
+
+
+def _build_researcher() -> Agent:
+    """Build a fresh researcher each turn.
+
+    CrewAI Agents carry mutable state (internal AgentExecutor, conversation
+    memory, cached tool calls). Reusing a module-level Agent across turns
+    causes the second turn to inherit the first turn's executor state and
+    can hang indefinitely while CrewAI tries to reconcile the stale
+    context. Rebuilding per turn keeps each crew kickoff hermetic.
+
+    ``max_iter`` bounds the agent's internal "re-prompt the model when
+    output doesn't parse" loop so a malformed response can never spin
+    forever; ``allow_delegation=False`` stops the agent from trying to
+    hand work off to its peers (the most common CrewAI hang).
+    """
+    return Agent(
+        role="Research Analyst",
+        goal="Gather exactly 3 key facts about the given topic.",
+        backstory=(
+            "You are a meticulous research analyst. When given a topic you "
+            "identify the 3 most interesting, verifiable facts and present "
+            "them as a numbered list. You are concise and factual."
+        ),
+        llm="gpt-4o-mini",
+        verbose=False,
+        max_iter=3,
+        allow_delegation=False,
+    )
+
+
+def _build_writer() -> Agent:
+    """Build a fresh writer each turn (same rationale as the researcher)."""
+    return Agent(
+        role="Blog Writer",
+        goal="Turn research findings into a polished 2-paragraph blog summary.",
+        backstory=(
+            "You are a skilled technology blogger. Given a numbered list of "
+            "research facts you craft an engaging, well-structured 2-paragraph "
+            "summary suitable for a general audience. You do not invent new "
+            "facts — you work only from what the researcher provided."
+        ),
+        llm="gpt-4o-mini",
+        verbose=False,
+        max_iter=3,
+        allow_delegation=False,
+    )
 
 
 @waxell.observe(agent_name="crewai-multi-agent", session_id=_SESSION_ID)
@@ -107,6 +125,10 @@ def blog_turn(topic: str, prior_topics: list[str]) -> str:
             "If the current topic is a follow-up, acknowledge the connection."
         )
 
+    # Fresh agents + tasks + crew every turn. See _build_researcher for why.
+    researcher = _build_researcher()
+    writer = _build_writer()
+
     research_task = Task(
         description=(
             f"Research the following topic and return exactly 3 key facts "
@@ -114,7 +136,7 @@ def blog_turn(topic: str, prior_topics: list[str]) -> str:
             f"Topic: {topic}{context_block}"
         ),
         expected_output="A numbered list of exactly 3 key facts about the topic.",
-        agent=_researcher,
+        agent=researcher,
     )
 
     write_task = Task(
@@ -129,19 +151,20 @@ def blog_turn(topic: str, prior_topics: list[str]) -> str:
         expected_output=(
             "A 2-paragraph blog summary (no headings, plain prose)."
         ),
-        agent=_writer,
+        agent=writer,
         context=[research_task],
     )
 
     crew = Crew(
-        agents=[_researcher, _writer],
+        agents=[researcher, writer],
         tasks=[research_task, write_task],
         process=Process.sequential,
         verbose=False,
+        memory=False,  # Don't share memory across runs — each turn is hermetic.
     )
 
     result = crew.kickoff()
-    # CrewAI returns a CrewOutput object; .raw holds the final string
+    # CrewAI returns a CrewOutput object; .raw holds the final string.
     final = str(result.raw) if hasattr(result, "raw") else str(result)
     if ctx is not None:
         ctx.record_agent_response(final)
