@@ -1,0 +1,31 @@
+# Local env — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Test / eval scratch
+.deepeval/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Per-example caches some agents write
+.chroma/
+.qdrant/
+.cache/

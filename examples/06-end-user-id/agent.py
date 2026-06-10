@@ -1,0 +1,138 @@
+"""06-end-user-id — per-end-user attribution with a conversational REPL.
+
+This example shows how to tag every run with the end user who triggered
+it. The same agent serves multiple end users (alice@example.com,
+bob@example.com). Each REPL turn forwards the current ``end_user_id``
+through ``@waxell.observe(end_user_id=...)`` so Waxell tags every run
+with the user. The controlplane can then filter runs by end-user.
+
+Key points:
+- ``end_user_id`` is a first-class ``@waxell.observe`` kwarg — the
+  decorator intercepts it (because it appears in ``_CONTEXT_PARAMS`` and
+  is NOT declared in the function signature) and forwards it to
+  ``WaxellContext`` before the function body even runs.
+- Conversation history is kept PER USER in a dict keyed by email.
+  Switching users with ``/switch`` preserves each user's history.
+- The tutor remembers what each user said they were studying because
+  the history dict is never cleared on a switch.
+
+REPL commands::
+
+    /whoami               — print the current end_user_id
+    /switch <email>       — change to a different end user
+    /reset                — clear the current user's conversation history
+    /exit                 — quit
+
+Run::
+
+    ./setup.sh                       # one-time
+    source .venv/bin/activate
+    python agent.py
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+import waxell_observe as waxell
+
+waxell.init()
+
+from openai import OpenAI
+
+_SYSTEM = (
+    "You are a personal study tutor. Your job is to help the user learn "
+    "whatever subject they are working on. Ask what they are studying if "
+    "you don't know yet. Keep track of their subject and progress across "
+    "turns — refer back to what they told you earlier when relevant. "
+    "Keep answers concise but genuinely useful."
+)
+
+# Per-user conversation history.  Key = end_user_id, value = list[dict].
+_histories: dict[str, list[dict]] = {}
+
+
+@waxell.observe(agent_name="end-user-id")
+def chat_turn(history: list[dict], user_message: str) -> str:
+    """One conversational turn.
+
+    ``end_user_id`` is NOT in this signature — that's intentional. The
+    decorator intercepts it from call-time kwargs (because it's in
+    ``_CONTEXT_PARAMS``) and passes it to ``WaxellContext``, tagging the
+    run without it ever reaching this function body.
+    """
+    client = OpenAI()
+    history.append({"role": "user", "content": user_message})
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0.4,
+        messages=[{"role": "system", "content": _SYSTEM}, *history],
+    )
+    reply = resp.choices[0].message.content or ""
+    history.append({"role": "assistant", "content": reply})
+    return reply
+
+
+def repl() -> None:
+    current_user: str = "anonymous"
+    print("end-user-id tutor — type a message, or /whoami, /switch <email>, /reset, /exit.")
+    print(f"current user: {current_user}\n")
+
+    while True:
+        try:
+            raw = input("you> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+
+        if not raw:
+            continue
+
+        if raw == "/exit":
+            break
+
+        if raw == "/whoami":
+            print(f"(current user: {current_user})\n")
+            continue
+
+        if raw.startswith("/switch "):
+            new_user = raw[len("/switch "):].strip()
+            if not new_user:
+                print("(usage: /switch <email>)\n")
+                continue
+            current_user = new_user
+            print(f"(switched to {current_user})\n")
+            continue
+
+        if raw == "/reset":
+            _histories[current_user] = []
+            print(f"(conversation reset for {current_user})\n")
+            continue
+
+        # Retrieve or create this user's history.
+        history = _histories.setdefault(current_user, [])
+
+        # Pass end_user_id as a call-time kwarg.  The decorator intercepts
+        # it (it's in _CONTEXT_PARAMS and not in chat_turn's signature) and
+        # forwards it to WaxellContext, tagging this run with the current user.
+        reply = chat_turn(history, raw, end_user_id=current_user)
+        print(f"assistant> {reply}\n")
+
+
+def main() -> None:
+    if not os.environ.get("OPENAI_API_KEY"):
+        sys.stderr.write(
+            "OPENAI_API_KEY is not set in .env — add it and re-run.\n"
+        )
+        sys.exit(1)
+    repl()
+
+
+if __name__ == "__main__":
+    main()

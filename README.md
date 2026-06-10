@@ -1,0 +1,99 @@
+# Waxell Agent Examples
+
+A skeleton library of small, runnable agents that each demonstrate a single
+Waxell observability or governance capability. Pick the one closest to what
+you're building, copy it, and start there.
+
+Every example is self-contained: one folder, one `agent.py`, one
+`requirements.txt`, one README. None of them depend on each other.
+
+---
+
+## Quickstart (3 minutes)
+
+```bash
+# 1. Clone + cd
+git clone https://github.com/patrickwaxell/waxell-agent-examples.git
+cd waxell-agent-examples
+
+# 2. Set up your Waxell credentials in .env from your local `wax` profile
+./scripts/seed-env-from-wax.sh           # uses the [default] profile
+# (or specify a profile: ./scripts/seed-env-from-wax.sh my-profile)
+
+# 3. Add your LLM provider key(s) to .env
+$EDITOR .env                             # paste OPENAI_API_KEY, ANTHROPIC_API_KEY, …
+
+# 4. Pick an example, install its deps, run it
+./scripts/setup-example.sh 01-hello-waxell
+source examples/01-hello-waxell/.venv/bin/activate
+python examples/01-hello-waxell/agent.py
+
+# 5. Watch the run land in your Waxell controlplane
+wax runs list --limit 3
+# (or open https://app.waxell.dev/agent-executions)
+```
+
+If you don't have `wax` installed yet, run `pip install waxell-observe` and
+follow the on-screen `wax setup` prompts before step 2.
+
+---
+
+## Examples
+
+| # | Folder | What it shows | Frameworks | Provider |
+|---|--------|---------------|------------|----------|
+| 01 | [`hello-waxell`](examples/01-hello-waxell) | The two-line decorator pattern — the default Waxell instrumentation | OpenAI Python SDK | OpenAI |
+| 02 | [`anthropic-tool-use`](examples/02-anthropic-tool-use) | Tool-use spans on Claude, captured automatically | Anthropic Python SDK | Anthropic |
+| 03 | [`langgraph-research`](examples/03-langgraph-research) | Multi-node LangGraph with a conditional loop edge | LangGraph + LangChain | OpenAI |
+| 04 | [`policy-block-pii`](examples/04-policy-block-pii) | Preventive policy: PII in user input → run blocked | OpenAI | OpenAI |
+| 05 | [`policy-warn-cost`](examples/05-policy-warn-cost) | Detective policy: cost threshold breached → incident recorded | OpenAI | OpenAI |
+| 06 | [`end-user-id`](examples/06-end-user-id) | Per-end-user attribution via `end_user_id=` | OpenAI | OpenAI |
+| 07 | [`streaming-chat`](examples/07-streaming-chat) | Streaming response capture in a span | OpenAI streaming | OpenAI |
+| 08 | [`rag-pipeline`](examples/08-rag-pipeline) | RAG with explicit retrieval spans for retrieval policies | OpenAI + in-memory store | OpenAI |
+| 09 | [`crewai-multi-agent`](examples/09-crewai-multi-agent) | Sub-agent lineage — nested runs visible as one tree | CrewAI | OpenAI |
+| 10 | [`judge-evaluation`](examples/10-judge-evaluation) | LLM-judge policy disposition — model grades the model | OpenAI | OpenAI |
+
+---
+
+## Repo layout
+
+```
+.
+├── README.md                 ← you are here
+├── LICENSE                   ← MIT
+├── .env.example              ← template for your local .env
+├── scripts/
+│   ├── seed-env-from-wax.sh  ← writes .env from your wax profile
+│   └── setup-example.sh      ← venv + pip install for one example
+└── examples/
+    └── NN-name/
+        ├── README.md         ← what this example shows, how to run it
+        ├── agent.py          ← the agent code
+        └── requirements.txt  ← pinned deps for this example
+```
+
+## What's *not* in here
+
+- Production hardening — these are minimal scaffolds. Add error handling,
+  retries, and timeouts for real workloads.
+- Multi-tenant patterns — every example runs as a single user. See
+  `06-end-user-id` for the sub-user attribution primitive.
+- Waxell control-plane setup — these examples *use* a running Waxell
+  controlplane (your local dev stack or `api.waxell.dev`). They don't set
+  one up.
+
+## Contributing a new example
+
+1. Copy `examples/01-hello-waxell` to a new numbered folder.
+2. Replace `agent.py` with the new pattern.
+3. Update the local `README.md` (what it shows, setup, run, what to look
+   for in the UI).
+4. Update the table in this top-level README.
+5. Open a PR.
+
+Each example should demonstrate **one** clearly-named capability. If two
+capabilities can be split into two examples, split them.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
