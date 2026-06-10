@@ -43,6 +43,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 import uuid
 
 import waxell_observe as waxell
+from waxell_observe import PolicyViolationError
 
 waxell.init()
 
@@ -137,13 +138,24 @@ def repl() -> None:
         # both places. Both are in _CONTEXT_PARAMS and absent from
         # chat_turn's signature, so the decorator intercepts both and
         # forwards them to WaxellContext without polluting the function.
-        reply = chat_turn(
-            history,
-            raw,
-            end_user_id=current_user,
-            user_id=current_user,
-        )
-        print(f"assistant> {reply}\n")
+        try:
+            reply = chat_turn(
+                history,
+                raw,
+                end_user_id=current_user,
+                user_id=current_user,
+            )
+            print(f"assistant> {reply}\n")
+        except PolicyViolationError as exc:
+            # The end-user-budget policy fires when this end-user has
+            # exceeded their monthly_budget_cap_cents. The run is recorded
+            # as Blocked in the controlplane; the REPL keeps running so
+            # the user can /switch to a different end-user and continue.
+            print(f"assistant> ⛔ blocked for {current_user}: {exc}\n")
+            # Drop the turn from history so the next turn doesn't replay
+            # the user message into the LLM context.
+            if history and history[-1].get("role") == "user":
+                history.pop()
 
 
 def main() -> None:
