@@ -35,9 +35,9 @@ wax policies push policies.py
 
 # 4. Verify the policy landed
 echo "verifying policy..."
-wax policies list | grep "example-cost-warn" \
+wax policies list --format=json | grep -q "example-cost-warn" \
   && echo "  policy 'example-cost-warn' is active." \
-  || { echo "warning: policy not found after push — check 'wax policies list'" >&2; }
+  || { echo "warning: policy not found after push — check 'wax policies list --format=json'" >&2; }
 
 echo ""
 echo "ready. run with:"
