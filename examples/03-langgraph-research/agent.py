@@ -37,9 +37,13 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
+import uuid
+
 import waxell_observe as waxell
 
 waxell.init()
+
+_SESSION_ID = uuid.uuid4().hex  # stable for this REPL process; shared across all turns
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
@@ -169,13 +173,16 @@ _graph = _build_graph()
 # ---------------------------------------------------------------------------
 
 
-@waxell.observe(agent_name="langgraph-research")
+@waxell.observe(agent_name="langgraph-research", session_id=_SESSION_ID)
 def research_turn(question: str, context: str) -> str:
     """One conversational turn. Each call = one Waxell run with 5 LLM spans.
 
     ``question`` is the user's current message; ``context`` is a compact
     summary of prior turns so the model has memory across REPL sessions.
     """
+    ctx = waxell.get_current_context()
+    if ctx is not None:
+        ctx.record_user_message(content=question)
     initial_state: ResearchState = {
         "question": question,
         "context": context,
@@ -185,7 +192,10 @@ def research_turn(question: str, context: str) -> str:
         "final_answer": "",
     }
     result = _graph.invoke(initial_state)
-    return result["final_answer"]
+    final_answer = result["final_answer"]
+    if ctx is not None:
+        ctx.record_agent_response(final_answer)
+    return final_answer
 
 
 # ---------------------------------------------------------------------------

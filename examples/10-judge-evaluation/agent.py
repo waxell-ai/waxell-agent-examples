@@ -35,9 +35,13 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
+import uuid
+
 import waxell_observe as waxell
 
 waxell.init()
+
+_SESSION_ID = uuid.uuid4().hex  # stable for this REPL process; shared across all turns
 
 from openai import OpenAI
 
@@ -54,7 +58,7 @@ _SYSTEM = (
 )
 
 
-@waxell.observe(agent_name="judge-evaluation")
+@waxell.observe(agent_name="judge-evaluation", session_id=_SESSION_ID)
 def chat_turn(history: list[dict], user_message: str) -> str:
     """One conversational turn.
 
@@ -65,6 +69,9 @@ def chat_turn(history: list[dict], user_message: str) -> str:
     """
     client = OpenAI()
     history.append({"role": "user", "content": user_message})
+    ctx = waxell.get_current_context()
+    if ctx is not None:
+        ctx.record_user_message(content=user_message)
     resp = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.3,
@@ -72,6 +79,8 @@ def chat_turn(history: list[dict], user_message: str) -> str:
     )
     reply = resp.choices[0].message.content or ""
     history.append({"role": "assistant", "content": reply})
+    if ctx is not None:
+        ctx.record_agent_response(reply)
     return reply
 
 

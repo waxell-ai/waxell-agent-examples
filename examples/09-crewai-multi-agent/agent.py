@@ -36,9 +36,13 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
+import uuid
+
 import waxell_observe as waxell
 
 waxell.init()
+
+_SESSION_ID = uuid.uuid4().hex  # stable for this REPL process; shared across all turns
 
 from crewai import Agent, Crew, Process, Task
 
@@ -76,7 +80,7 @@ _writer = Agent(
 # ---------------------------------------------------------------------------
 
 
-@waxell.observe(agent_name="crewai-multi-agent")
+@waxell.observe(agent_name="crewai-multi-agent", session_id=_SESSION_ID)
 def blog_turn(topic: str, prior_topics: list[str]) -> str:
     """One conversational turn.
 
@@ -91,6 +95,9 @@ def blog_turn(topic: str, prior_topics: list[str]) -> str:
     ``prior_topics`` is the list of topics discussed so far, threaded
     into the researcher's task so the crew can handle follow-up questions.
     """
+    ctx = waxell.get_current_context()
+    if ctx is not None:
+        ctx.record_user_message(content=topic)
     context_block = ""
     if prior_topics:
         listed = "\n".join(f"  - {t}" for t in prior_topics)
@@ -135,7 +142,10 @@ def blog_turn(topic: str, prior_topics: list[str]) -> str:
 
     result = crew.kickoff()
     # CrewAI returns a CrewOutput object; .raw holds the final string
-    return str(result.raw) if hasattr(result, "raw") else str(result)
+    final = str(result.raw) if hasattr(result, "raw") else str(result)
+    if ctx is not None:
+        ctx.record_agent_response(final)
+    return final
 
 
 # ---------------------------------------------------------------------------

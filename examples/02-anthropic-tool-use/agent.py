@@ -38,9 +38,13 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
+import uuid
+
 import waxell_observe as waxell
 
 waxell.init()
+
+_SESSION_ID = uuid.uuid4().hex  # stable for this REPL process; shared across all turns
 
 import anthropic
 
@@ -179,7 +183,7 @@ def _run_tool(tool_name: str, tool_input: dict) -> str:
         return json.dumps({"error": str(exc)})
 
 
-@waxell.observe(agent_name="anthropic-tool-use")
+@waxell.observe(agent_name="anthropic-tool-use", session_id=_SESSION_ID)
 def chat_turn(history: list[dict], user_message: str) -> str:
     """One conversational turn with Anthropic tool use.
 
@@ -194,6 +198,9 @@ def chat_turn(history: list[dict], user_message: str) -> str:
     """
     client = anthropic.Anthropic()
     history.append({"role": "user", "content": user_message})
+    ctx = waxell.get_current_context()
+    if ctx is not None:
+        ctx.record_user_message(content=user_message)
 
     while True:
         response = client.messages.create(
@@ -212,6 +219,8 @@ def chat_turn(history: list[dict], user_message: str) -> str:
                 if hasattr(block, "text")
             ).strip()
             history.append({"role": "assistant", "content": response.content})
+            if ctx is not None:
+                ctx.record_agent_response(reply)
             return reply
 
         if response.stop_reason == "tool_use":

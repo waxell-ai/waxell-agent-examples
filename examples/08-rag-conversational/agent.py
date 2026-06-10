@@ -32,10 +32,14 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
+import uuid
+
 import numpy as np
 import waxell_observe as waxell
 
 waxell.init()
+
+_SESSION_ID = uuid.uuid4().hex  # stable for this REPL process; shared across all turns
 
 from openai import OpenAI
 
@@ -194,7 +198,7 @@ _ANSWER_SYSTEM = (
 )
 
 
-@waxell.observe(agent_name="rag-conversational")
+@waxell.observe(agent_name="rag-conversational", session_id=_SESSION_ID)
 def chat_turn(history: list[dict], user_message: str) -> str:
     """One conversational turn with RAG.
 
@@ -207,6 +211,8 @@ def chat_turn(history: list[dict], user_message: str) -> str:
 
     # 2. Record retrieval results to Waxell (one call per document)
     ctx = waxell.get_current_context()
+    if ctx is not None:
+        ctx.record_user_message(content=user_message)
     if ctx is not None:
         for hit in results:
             ctx.record_retrieval_result(
@@ -232,6 +238,8 @@ def chat_turn(history: list[dict], user_message: str) -> str:
     )
     reply = resp.choices[0].message.content or ""
     history.append({"role": "assistant", "content": reply})
+    if ctx is not None:
+        ctx.record_agent_response(reply)
     return reply
 
 
