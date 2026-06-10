@@ -13,7 +13,7 @@ Every example is self-contained: one folder, one `agent.py`, one
 
 ```bash
 # 1. Clone + cd
-git clone https://github.com/patrickwaxell/waxell-agent-examples.git
+git clone https://github.com/waxell-ai/waxell-agent-examples.git
 cd waxell-agent-examples
 
 # 2. Set up your Waxell credentials in .env from your local `wax` profile
