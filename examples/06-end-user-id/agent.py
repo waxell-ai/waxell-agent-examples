@@ -77,8 +77,15 @@ def chat_turn(history: list[dict], user_message: str) -> str:
     ctx = waxell.get_current_context()
     if ctx is not None:
         ctx.record_user_message(content=user_message)
+    # This example uses gpt-4o (not gpt-4o-mini) because the
+    # end-user-budget policy reads cumulative spend from
+    # WaxellUserActivity.cost_cents — an INTEGER field. gpt-4o-mini
+    # turns cost ~$0.0001 each, which rounds to 0 integer cents and
+    # never accumulates, so a 1¢ cap would never trip. gpt-4o turns
+    # cost ~1-2¢ each, so bob's 1¢ cap exhausts on the very first
+    # turn — which is the point of the demo.
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         temperature=0.4,
         messages=[{"role": "system", "content": _SYSTEM}, *history],
     )
