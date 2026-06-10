@@ -127,10 +127,22 @@ def repl() -> None:
         # Retrieve or create this user's history.
         history = _histories.setdefault(current_user, [])
 
-        # Pass end_user_id as a call-time kwarg.  The decorator intercepts
-        # it (it's in _CONTEXT_PARAMS and not in chat_turn's signature) and
-        # forwards it to WaxellContext, tagging this run with the current user.
-        reply = chat_turn(history, raw, end_user_id=current_user)
+        # Pass the current user as BOTH `end_user_id` (the policy-side
+        # sub-user identity used by end-user-* policy handlers) AND
+        # `user_id` (the observability-side identifier that surfaces as
+        # the "USER" field in the controlplane UI). The SDK keeps these
+        # separate because B2B apps often need to distinguish the
+        # logged-in operator from the end customer; for this single-user
+        # demo we set them to the same value so the switch is visible in
+        # both places. Both are in _CONTEXT_PARAMS and absent from
+        # chat_turn's signature, so the decorator intercepts both and
+        # forwards them to WaxellContext without polluting the function.
+        reply = chat_turn(
+            history,
+            raw,
+            end_user_id=current_user,
+            user_id=current_user,
+        )
         print(f"assistant> {reply}\n")
 
 
