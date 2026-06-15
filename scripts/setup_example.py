@@ -92,10 +92,20 @@ def venv_python(venv_dir: Path) -> Path:
     return venv_dir / "bin" / "python"
 
 
-def activate_hint(venv_dir: Path) -> str:
+def activate_hints(venv_dir: Path) -> list[str]:
+    """Return one or more activate commands the user can paste.
+
+    Windows has two shells in everyday use and the activate scripts differ:
+      - PowerShell: ``.\\.venv\\Scripts\\Activate.ps1``
+      - cmd.exe:    ``.venv\\Scripts\\activate.bat``
+    macOS / Linux / WSL: ``source .venv/bin/activate``.
+    """
     if os.name == "nt":
-        return f"{venv_dir}\\Scripts\\activate.bat"
-    return f"source {venv_dir}/bin/activate"
+        return [
+            f".\\{venv_dir.relative_to(REPO_ROOT)}\\Scripts\\Activate.ps1   (PowerShell)",
+            f"{venv_dir.relative_to(REPO_ROOT)}\\Scripts\\activate.bat   (cmd.exe)",
+        ]
+    return [f"source {venv_dir.relative_to(REPO_ROOT)}/bin/activate"]
 
 
 def main() -> None:
@@ -159,10 +169,14 @@ def main() -> None:
     )
 
     print()
-    print("ready. to run:")
-    print(f"  {activate_hint(venv_dir)}")
+    print("ready. activate the venv:")
+    for hint in activate_hints(venv_dir):
+        print(f"  {hint}")
     sep = "\\" if os.name == "nt" else "/"
-    print(f"  python {example_dir}{sep}agent.py")
+    rel_example = example_dir.relative_to(REPO_ROOT)
+    print()
+    print("then run the agent:")
+    print(f"  python {str(rel_example).replace('/', sep)}{sep}agent.py")
     print()
     print(f"see {example_dir / 'README.md'} for what to look for in the Waxell UI.")
 

@@ -32,10 +32,13 @@ python scripts/setup_example.py 01-hello-waxell
 #    (this prints the right activate command for your platform)
 
 # 5. Activate the per-example venv, then run the agent
-#    macOS / Linux:
+#    macOS / Linux / WSL:
 source examples/01-hello-waxell/.venv/bin/activate
 python examples/01-hello-waxell/agent.py
-#    Windows (cmd.exe or PowerShell):
+#    Windows PowerShell:
+.\examples\01-hello-waxell\.venv\Scripts\Activate.ps1
+python examples\01-hello-waxell\agent.py
+#    Windows cmd.exe:
 examples\01-hello-waxell\.venv\Scripts\activate.bat
 python examples\01-hello-waxell\agent.py
 
