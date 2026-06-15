@@ -11,30 +11,52 @@ Every example is self-contained: one folder, one `agent.py`, one
 
 ## Quickstart (3 minutes)
 
-```bash
+The bootstrap scripts are pure Python so they work the same on Windows,
+macOS, and Linux — no bash, no platform-specific shims. You need Python
+3.12 or 3.13 on PATH (the `waxell-observe` wheel only ships for those
+two right now).
+
+```text
 # 1. Clone + cd
 git clone https://github.com/waxell-ai/waxell-agent-examples.git
 cd waxell-agent-examples
 
-# 2. Set up your Waxell credentials in .env from your local `wax` profile
-./scripts/seed-env-from-wax.sh           # uses the [default] profile
-# (or specify a profile: ./scripts/seed-env-from-wax.sh my-profile)
+# 2. Seed .env from your local wax profile
+python scripts/seed_env_from_wax.py              # uses the [default] profile
+# or specify a profile: python scripts/seed_env_from_wax.py my-profile
 
-# 3. Add your LLM provider key(s) to .env
-$EDITOR .env                             # paste OPENAI_API_KEY, ANTHROPIC_API_KEY, …
+# 3. Open .env and paste your LLM provider key(s) — OPENAI_API_KEY, ANTHROPIC_API_KEY, …
 
 # 4. Pick an example, install its deps, run it
-./scripts/setup-example.sh 01-hello-waxell
+python scripts/setup_example.py 01-hello-waxell
+#    (this prints the right activate command for your platform)
+
+# 5. Activate the per-example venv, then run the agent
+#    macOS / Linux:
 source examples/01-hello-waxell/.venv/bin/activate
 python examples/01-hello-waxell/agent.py
+#    Windows (cmd.exe or PowerShell):
+examples\01-hello-waxell\.venv\Scripts\activate.bat
+python examples\01-hello-waxell\agent.py
 
-# 5. Watch the run land in your Waxell controlplane
+# 6. Watch the run land
 wax runs list --limit 3
 # (or open https://app.waxell.dev/agent-executions)
 ```
 
-If you don't have `wax` installed yet, run `pip install waxell-observe` and
+If your default `python` doesn't work, try `py -3.13` (Windows launcher)
+or `python3.13` / `python3.12` (macOS / Linux). The setup script auto-
+detects the right one when creating each example's venv.
+
+If you don't have `wax` installed yet: `pip install waxell-observe`, then
 follow the on-screen `wax setup` prompts before step 2.
+
+### Bash users (macOS / Linux)
+
+The legacy `./scripts/setup-example.sh` and `./scripts/seed-env-from-wax.sh`
+shell scripts are still here and work the same. The Python scripts are the
+canonical entry point now because they work on Windows too — pick whichever
+matches your shell.
 
 ---
 
