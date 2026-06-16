@@ -77,6 +77,7 @@ matches your shell.
 | 08 | [`rag-pipeline`](examples/08-rag-pipeline) | RAG with explicit retrieval spans for retrieval policies | OpenAI + in-memory store | OpenAI |
 | 09 | [`crewai-multi-agent`](examples/09-crewai-multi-agent) | Sub-agent lineage — nested runs visible as one tree | CrewAI | OpenAI |
 | 10 | [`judge-evaluation`](examples/10-judge-evaluation) | LLM-judge policy disposition — model grades the model | OpenAI | OpenAI |
+| 12 | [`bedrock-agent`](examples/12-bedrock-agent) | Managed Amazon Bedrock Agent invocation captured via the boto3 instrumentor | boto3 + `bedrock-agent-runtime` | AWS Bedrock (any FM) |
 | 13 | [`bedrock-agentcore-harness`](examples/13-bedrock-agentcore-harness) | Managed Amazon Bedrock AgentCore Harness via boto3 — the modular agent platform | boto3 + `bedrock-agentcore` | AWS Bedrock AgentCore (any FM) |
 
 ---
