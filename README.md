@@ -51,8 +51,11 @@ If your default `python` doesn't work, try `py -3.13` (Windows launcher)
 or `python3.13` / `python3.12` (macOS / Linux). The setup script auto-
 detects the right one when creating each example's venv.
 
-If you don't have `wax` installed yet: `pip install waxell-observe`, then
-follow the on-screen `wax setup` prompts before step 2.
+If you don't have `wax` installed yet: `pipx install waxell` (or
+`pip install waxell`) — the `waxell` meta package is what registers the
+`wax` CLI on PATH. The instrumentation SDK (`waxell-observe`) is a
+separate package and does **not** ship the CLI. After install, run
+`wax setup` and follow the prompts before step 2.
 
 ### Bash users (macOS / Linux)
 
