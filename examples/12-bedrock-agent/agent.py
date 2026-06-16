@@ -68,6 +68,10 @@ def chat_turn(user_message: str) -> str:
         agentAliasId=_AGENT_ALIAS_ID,
         sessionId=_SESSION_ID,
         inputText=user_message,
+        enableTrace=True,  # opt-in: returns the inner model/tool/KB trace
+        # event stream alongside chunks. waxell-observe parses these into
+        # child spans so the Waxell UI shows LLM token counts, tool calls,
+        # and KB retrievals — not just the outer InvokeAgent call.
     )
 
     # InvokeAgent returns an EventStream of chunks — concatenate the
