@@ -51,11 +51,6 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 app = BedrockAgentCoreApp()
 REGION = os.getenv("AWS_REGION", "us-east-1")
 MODEL_ID = "amazon.nova-lite-v1:0"
-_REFUSAL = (
-    "I can't process that — your request was blocked by the tenant's "
-    "content policy. Please remove any sensitive personal information "
-    "(SSNs, credit cards, etc.) and try again."
-)
 
 
 @waxell.observe(agent_name="bedrock-agentcore-runtime-byo")
@@ -93,10 +88,12 @@ async def invoke(payload, context):
     user_message = payload.get("prompt", "")
     try:
         reply = chat_turn(user_message)
-    except (PolicyViolationError, PromptGuardError):
+    except (PolicyViolationError, PromptGuardError) as exc:
         # Pre-flight content policy blocked the call — Waxell already
-        # recorded the violation server-side. Send a clean refusal.
-        reply = _REFUSAL
+        # recorded the violation server-side. Surface the actual policy
+        # reason from the exception (e.g. "Input content violations:
+        # PII detected: ssn") so the caller knows what to fix.
+        reply = f"Request blocked by Waxell policy: {exc}"
     yield reply
 
 
