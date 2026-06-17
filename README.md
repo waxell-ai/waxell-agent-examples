@@ -82,6 +82,7 @@ matches your shell.
 | 10 | [`judge-evaluation`](examples/10-judge-evaluation) | LLM-judge policy disposition — model grades the model | OpenAI | OpenAI |
 | 12 | [`bedrock-agent`](examples/12-bedrock-agent) | Managed Amazon Bedrock Agent invocation captured via the boto3 instrumentor | boto3 + `bedrock-agent-runtime` | AWS Bedrock (any FM) |
 | 13 | [`bedrock-agentcore-harness`](examples/13-bedrock-agentcore-harness) | Managed Amazon Bedrock AgentCore Harness via boto3 — the modular agent platform | boto3 + `bedrock-agentcore` | AWS Bedrock AgentCore (any FM) |
+| 14 | [`bedrock-agentcore-runtime-byo`](examples/14-bedrock-agentcore-runtime-byo) | BYO Python agent deployed to AWS AgentCore Runtime — `waxell-observe` runs **inside** the AWS-managed microVM | `agentcore` CLI + boto3 | AWS Bedrock AgentCore Runtime (any FM) |
 
 ---
 
