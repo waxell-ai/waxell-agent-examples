@@ -1,17 +1,19 @@
-# 14-bedrock-agentcore-runtime-byo
+# 11-bedrock-agentcore-runtime-byo
 
 Your own Python agent code, deployed to **Amazon Bedrock AgentCore
 Runtime** (the BYO-code path), with `waxell-observe` running **inside
-the AgentCore microVM**. Distinct from:
+the AgentCore microVM**. This is the **production-grade** pattern for
+running Waxell-governed agents on AWS-managed compute: the SDK lives
+inside your container/ZIP, so we capture LLM calls AND **enforce
+controlplane-managed policies** with the same depth as a local agent.
 
-- `12-bedrock-agent` — legacy managed Bedrock Agent service (we
-  instrument from the calling process only)
-- `13-bedrock-agentcore-harness` — managed AgentCore Harness (we
-  instrument from the calling process + a `GetHarness` lookup; we
-  can't run code inside the harness)
-- this example — **`waxell-observe` runs inside AWS-managed compute**,
-  so we capture LLM calls AND **enforce controlplane-managed policies**
-  with the same depth as a local agent
+The other paths AWS offers (legacy managed Bedrock Agents, AgentCore
+Harness) host the agent loop on AWS's side and don't accept a
+customer-installed SDK. For those, instrumentation is limited to
+pre/post-call gates on the outer boto3 client — shallow observability,
+no in-runtime enforcement. They're intentionally not shipped as
+examples here because the integration story is the opposite of
+production-grade.
 
 ## What it shows
 
