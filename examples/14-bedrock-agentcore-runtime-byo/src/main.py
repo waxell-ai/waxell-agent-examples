@@ -7,16 +7,15 @@ AgentCore Runtime. The microVM that AWS spins up runs your code
 directly — so ``waxell-observe`` runs INSIDE the runtime with full
 visibility on every LLM call.
 
-This example demonstrates BOTH halves:
-
-1. **Observability** — the agent makes a Bedrock Converse call, the
-   instrumentor captures the LLM child span with real model id,
-   tokens, and cost. Same shape as ``01-hello-waxell``.
-
-2. **Enforcement (input-side)** — an inline PII guard scans the input
-   for an SSN pattern and short-circuits before the LLM call fires.
-   The guard runs inside the AgentCore microVM, proving Waxell-style
-   policy enforcement works in AWS-managed compute.
+**Policies are managed in Waxell — not in code.** The agent does NOT
+contain any inline PII / content checks. A content policy (PII
+detection, denied topics, etc.) is registered on the Waxell
+controlplane (via the Govern UI or ``wax policies push``). The SDK's
+content handler fetches active policies at request time, scans the
+inputs, and raises ``PolicyViolationError`` *before* the Bedrock
+Converse call ever lands. The agent catches and returns a refusal —
+that's the entire production pattern. The blocked run + policy
+violation show up in the Waxell run UI under the Governance panel.
 
 Deployment is two commands::
 
@@ -32,16 +31,17 @@ Then exercise both paths::
     agentcore invoke '{"prompt": "my SSN is 123-45-6789"}'
 
 The clean call lands as a successful run with an LLM child span at
-``api.waxell.dev``. The SSN call returns the refusal text and never
-makes the Bedrock call.
+``api.waxell.dev``. The SSN call lands as a BLOCKED run with the
+policy violation recorded; the Bedrock call never fires.
 """
 
 from __future__ import annotations
 
 import os
-import re
 
 import waxell_observe as waxell
+from waxell_observe import PolicyViolationError
+from waxell_observe.instrumentors._guard import PromptGuardError
 
 waxell.init()
 
@@ -51,38 +51,31 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 app = BedrockAgentCoreApp()
 REGION = os.getenv("AWS_REGION", "us-east-1")
 MODEL_ID = "amazon.nova-lite-v1:0"
-_SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 _REFUSAL = (
-    "I can't process that — your message looked like it contained a "
-    "Social Security Number, which the agent's PII policy blocks."
+    "I can't process that — your request was blocked by the tenant's "
+    "content policy. Please remove any sensitive personal information "
+    "(SSNs, credit cards, etc.) and try again."
 )
 
 
 @waxell.observe(agent_name="bedrock-agentcore-runtime-byo")
 def chat_turn(user_message: str) -> str:
-    """One LLM turn against Bedrock Nova Lite, guarded by an inline
-    PII check. Decorated with @observe so the run + LLM child span
-    surface in the Waxell controlplane."""
+    """One LLM turn against Bedrock Nova Lite. waxell-observe handles
+    policy enforcement transparently: it fetches active content
+    policies from the controlplane during @observe context entry (on
+    record_user_message) and raises PolicyViolationError before
+    ``chat_turn``'s body ever runs if any pre-flight rule fires."""
     ctx = waxell.get_current_context()
     if ctx is not None:
         ctx.record_user_message(content=user_message)
-
-    # Pre-flight PII guard — short-circuits before the LLM call when
-    # the input matches an SSN pattern. The fact that this branch
-    # fires inside the AgentCore Runtime microVM proves enforcement
-    # works in AWS-managed compute.
-    if _SSN_RE.search(user_message):
-        if ctx is not None:
-            ctx.record_agent_response(_REFUSAL)
-        return _REFUSAL
 
     client = boto3.client("bedrock-runtime", region_name=REGION)
     response = client.converse(
         modelId=MODEL_ID,
         messages=[{"role": "user", "content": [{"text": user_message}]}],
     )
-    reply = response["output"]["message"]["content"][0]["text"]
 
+    reply = response["output"]["message"]["content"][0]["text"]
     if ctx is not None:
         ctx.record_agent_response(reply)
     return reply
@@ -91,9 +84,19 @@ def chat_turn(user_message: str) -> str:
 @app.entrypoint
 async def invoke(payload, context):
     """AgentCore Runtime entry point. Receives ``payload`` (dict) +
-    ``context`` (session info). Streams the reply back via yield."""
+    ``context`` (session info). The PolicyViolationError catch lives
+    HERE — not inside ``chat_turn`` — because the SDK's pre-flight
+    check fires during the @observe context's entry phase, before
+    the decorated function's body executes. Catching at the outer
+    call site is the canonical pattern for tenant-managed content
+    policies."""
     user_message = payload.get("prompt", "")
-    reply = chat_turn(user_message)
+    try:
+        reply = chat_turn(user_message)
+    except (PolicyViolationError, PromptGuardError):
+        # Pre-flight content policy blocked the call — Waxell already
+        # recorded the violation server-side. Send a clean refusal.
+        reply = _REFUSAL
     yield reply
 
 
